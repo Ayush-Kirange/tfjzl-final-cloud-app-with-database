@@ -52,13 +52,13 @@
             {% for item in results %}
             <div class="card mb-3">
                 <div class="card-body">
-                    <h6>{{ forloop.counter }}. {{ item.question.content }}</h6>
+                    <h6>{{ forloop.counter }}. {{ item.question.question_text }}</h6>
                     <p>Marks: {{ item.grade }}</p>
                     {% for choice in item.choices %}
                     <p>
                         {% if choice.id in item.correct_ids %}<strong>Correct answer:</strong>{% endif %}
                         {% if choice.id in item.selected_ids %}<u>Your selection:</u>{% endif %}
-                        {{ choice.content }}
+                        {{ choice.choice_text }}
                     </p>
                     {% endfor %}
                     {% if item.is_correct %}

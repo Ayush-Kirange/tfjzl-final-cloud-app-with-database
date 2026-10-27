@@ -146,46 +146,84 @@ from .models import Question, Choice, Submission
 def submit(request, course_id):
     if request.method != "POST":
         return redirect("onlinecourse:course_details", pk=course_id)
+
     course = get_object_or_404(Course, pk=course_id)
-    enrollment = get_object_or_404(Enrollment, user=request.user, course=course)
+    enrollment = get_object_or_404(
+        Enrollment, user=request.user, course=course
+    )
     submission = Submission.objects.create(enrollment=enrollment)
     selected_ids = extract_answers(request)
-    choices = Choice.objects.filter(id__in=selected_ids, question__course=course)
+    choices = Choice.objects.filter(
+        id__in=selected_ids, question__course=course
+    )
     submission.choices.set(choices)
+
     score = 0
-    for q in Question.objects.filter(course=course):
-        correct = set(q.choices.filter(is_correct=True).values_list("id", flat=True))
-        selected = set(choices.filter(question=q).values_list("id", flat=True))
-        if correct and selected == correct:
-            score += q.grade
+    for question in Question.objects.filter(course=course):
+        question_choice_ids = choices.filter(
+            question=question
+        ).values_list("id", flat=True)
+        score += question.is_get_score(question_choice_ids)
+
     submission.score = score
     submission.completed = True
     submission.save()
-    return redirect("onlinecourse:show_exam_result", course_id=course.id, submission_id=submission.id)
+
+    return redirect(
+        "onlinecourse:show_exam_result",
+        course_id=course.id,
+        submission_id=submission.id,
+    )
 
 
 @login_required
 def show_exam_result(request, course_id, submission_id):
     course = get_object_or_404(Course, pk=course_id)
-    submission = get_object_or_404(Submission, pk=submission_id, enrollment__user=request.user, enrollment__course=course)
+    submission = get_object_or_404(
+        Submission,
+        pk=submission_id,
+        enrollment__user=request.user,
+        enrollment__course=course,
+    )
+
     results = []
-    selected_ids = set(submission.choices.values_list("id", flat=True))
+    selected_ids = set(
+        submission.choices.values_list("id", flat=True)
+    )
     total_score = 0
-    for q in Question.objects.filter(course=course).prefetch_related("choices"):
-        total_score += q.grade
-        correct = set(q.choices.filter(is_correct=True).values_list("id", flat=True))
-        q_ids = set(q.choices.values_list("id", flat=True))
-        selected = selected_ids.intersection(q_ids)
+
+    for question in Question.objects.filter(
+        course=course
+    ).prefetch_related("choices"):
+        possible = question.choices.all()
+        question_ids = set(possible.values_list("id", flat=True))
+        selected_for_question = selected_ids.intersection(question_ids)
+        correct_ids = set(
+            possible.filter(is_correct=True).values_list("id", flat=True)
+        )
+        question_score = question.is_get_score(selected_for_question)
+        total_score += question.grade
+
         results.append({
-            "question": q,
-            "choices": q.choices.all(),
-            "selected_ids": selected,
-            "correct_ids": correct,
-            "is_correct": bool(correct) and selected == correct,
-            "grade": q.grade,
+            "question": question,
+            "choices": possible,
+            "possible": possible,
+            "selected_ids": selected_for_question,
+            "correct_ids": correct_ids,
+            "is_correct": question_score > 0,
+            "grade": question.grade,
+            "score": question_score,
         })
+
     grade = submission.score / total_score * 100 if total_score else 0
+
     return render(request, "onlinecourse/exam_result_bootstrap.html", {
-        "course": course, "submission": submission, "results": results,
-        "score": submission.score, "total_score": total_score, "grade": grade,
+        "course": course,
+        "submission": submission,
+        "results": results,
+        "selected_ids": selected_ids,
+        "possible": results,
+        "score": submission.score,
+        "total_score": total_score,
+        "grade": grade,
     })

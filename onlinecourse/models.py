@@ -102,11 +102,19 @@ class Enrollment(models.Model):
 # Question model
 class Question(models.Model):
     course = models.ForeignKey(Course, on_delete=models.CASCADE)
-    content = models.CharField(max_length=200)
+    question_text = models.CharField(max_length=200)
     grade = models.IntegerField(default=0)
 
+    def is_get_score(self, selected_ids):
+        correct_ids = set(
+            self.choices.filter(is_correct=True).values_list('id', flat=True)
+        )
+        if correct_ids and set(selected_ids) == correct_ids:
+            return self.grade
+        return 0
+
     def __str__(self):
-        return self.content
+        return self.question_text
 
 
 # Choice model
@@ -116,11 +124,11 @@ class Choice(models.Model):
         on_delete=models.CASCADE,
         related_name='choices'
     )
-    content = models.CharField(max_length=200)
+    choice_text = models.CharField(max_length=200)
     is_correct = models.BooleanField(default=False)
 
     def __str__(self):
-        return self.content
+        return self.choice_text
 
 
 # Submission model
