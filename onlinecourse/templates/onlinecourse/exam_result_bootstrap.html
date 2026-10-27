@@ -36,19 +36,41 @@
 </nav>
 
 <div class="container-fluid">
-    {% if grade > 80 %}
+    {% if grade >= 50 %}
     <div class="alert alert-success">
-       <!--HINT Display passed info -->
+       <h4>Congratulations!</h4><p>You passed with {{ grade|floatformat:1 }}%.</p>
     </div>
         {% else %}
         <div class="alert alert-danger">
-            <!--HINT Display failed info -->
+            <p>Your score is {{ grade|floatformat:1 }}%. Please try again.</p>
         </div>
         <a class="btn btn-link text-danger" href="{% url 'onlinecourse:course_details' course.id %}">Re-test</a>
         {% endif %}
         <div class="card-columns-vertical mt-1">
         <h5 class="">Exam results</h5>
-            <!--HINT Display exam results-->
+            <p>Score: {{ score }} / {{ total_score }}</p>
+            {% for item in results %}
+            <div class="card mb-3">
+                <div class="card-body">
+                    <h6>{{ forloop.counter }}. {{ item.question.content }}</h6>
+                    <p>Marks: {{ item.grade }}</p>
+                    {% for choice in item.choices %}
+                    <p>
+                        {% if choice.id in item.correct_ids %}<strong>Correct answer:</strong>{% endif %}
+                        {% if choice.id in item.selected_ids %}<u>Your selection:</u>{% endif %}
+                        {{ choice.content }}
+                    </p>
+                    {% endfor %}
+                    {% if item.is_correct %}
+                    <span class="text-success">Correct!</span>
+                    {% else %}
+                    <span class="text-danger">Incorrect</span>
+                    {% endif %}
+                </div>
+            </div>
+            {% empty %}
+            <p>No exam questions were found.</p>
+            {% endfor %}
         </div>
     </div>
 </body>
